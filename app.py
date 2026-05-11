@@ -212,9 +212,10 @@ st.markdown("""
 
 st.markdown('<div class="sec-label">Upload your file</div>', unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader(
+uploaded_files = st.file_uploader(
     label="upload",
     type=["pdf", "docx", "pptx", "epub", "txt"],
+    accept_multiple_files=True,
     label_visibility="collapsed",
     help="Supports PDF, DOCX, PPTX, EPUB, TXT. Max 200MB."
 )
@@ -555,26 +556,52 @@ OUTPUT_OPTIONS = {
 #  MAIN FLOW
 # ═══════════════════════════════════════════════
 
-if uploaded_file is not None:
+# ═══════════════════════════════════════════════
+#  MAIN FLOW — MULTI FILE
+# ═══════════════════════════════════════════════
+if uploaded_files:
 
-    ext = uploaded_file.name.rsplit(".", 1)[-1].lower()
-    size_kb = round(uploaded_file.size / 1024, 1)
-    size_str = f"{size_kb} KB" if size_kb < 1024 else f"{round(size_kb/1024,1)} MB"
-    icon, ftype, fhint = FILE_META.get(ext, ("📄", "File", "Text extraction"))
+    st.markdown(
+        '<div class="sec-label" style="margin-top:1rem">Uploaded files</div>',
+        unsafe_allow_html=True
+    )
 
-    st.markdown(f"""
-    <div class="icard">
-        <div class="icard-icon">{icon}</div>
-        <div>
-            <div class="icard-name">{uploaded_file.name}</div>
-            <div class="icard-meta">{size_str} · {ftype} · {fhint}</div>
+    # Show uploaded files
+    for uploaded_file in uploaded_files:
+
+        ext = uploaded_file.name.rsplit(".", 1)[-1].lower()
+
+        size_kb = round(uploaded_file.size / 1024, 1)
+
+        size_str = (
+            f"{size_kb} KB"
+            if size_kb < 1024
+            else f"{round(size_kb/1024,1)} MB"
+        )
+
+        icon, ftype, fhint = FILE_META.get(
+            ext,
+            ("📄", "File", "Text extraction")
+        )
+
+        st.markdown(f"""
+        <div class="icard">
+            <div class="icard-icon">{icon}</div>
+            <div>
+                <div class="icard-name">{uploaded_file.name}</div>
+                <div class="icard-meta">
+                    {size_str} · {ftype} · {fhint}
+                </div>
+            </div>
+            <div class="icard-status">Ready</div>
         </div>
-        <div class="icard-status">Ready</div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    # ── Output format picker ──────────────────────
-    st.markdown('<div class="sec-label" style="margin-top:1rem">Choose output format</div>', unsafe_allow_html=True)
+    # OUTPUT FORMAT
+    st.markdown(
+        '<div class="sec-label" style="margin-top:1rem">Choose output format</div>',
+        unsafe_allow_html=True
+    )
 
     out_choice = st.radio(
         label="output_format",
@@ -586,84 +613,165 @@ if uploaded_file is not None:
 
     out_fmt, out_icon = OUTPUT_OPTIONS[out_choice]
 
-    # ── Extract button ────────────────────────────
-    st.markdown('<div style="margin-top:1rem"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="margin-top:1rem"></div>',
+        unsafe_allow_html=True
+    )
 
-    if st.button("⚡  Extract highlights", use_container_width=True):
+    # EXTRACT BUTTON
+    if st.button(
+        "⚡ Extract highlights",
+        use_container_width=True
+    ):
 
-        file_bytes = uploaded_file.read()
-        base_name = os.path.splitext(uploaded_file.name)[0]
+        all_items = []
+
+        total_pages = 0
+
+        processed_files = 0
 
         with st.spinner("Extracting content…"):
-            if ext == "pdf":
-                items, pages = extract_pdf(file_bytes, uploaded_file.name)
-            elif ext == "docx":
-                items, pages = extract_docx(file_bytes, uploaded_file.name)
-            elif ext == "pptx":
-                items, pages = extract_pptx(file_bytes, uploaded_file.name)
-            elif ext == "epub":
-                items, pages = extract_epub(file_bytes, uploaded_file.name)
-            elif ext == "txt":
-                items, pages = extract_txt(file_bytes, uploaded_file.name)
-            else:
-                items, pages = [], 0
 
-        total = len(items)
-        page_label = "Slides" if ext == "pptx" else ("Lines" if ext == "txt" else "Pages")
+            for uploaded_file in uploaded_files:
+
+                ext = uploaded_file.name.rsplit(".", 1)[-1].lower()
+
+                file_bytes = uploaded_file.read()
+
+                try:
+
+                    if ext == "pdf":
+
+                        items, pages = extract_pdf(
+                            file_bytes,
+                            uploaded_file.name
+                        )
+
+                    elif ext == "docx":
+
+                        items, pages = extract_docx(
+                            file_bytes,
+                            uploaded_file.name
+                        )
+
+                    elif ext == "pptx":
+
+                        items, pages = extract_pptx(
+                            file_bytes,
+                            uploaded_file.name
+                        )
+
+                    elif ext == "epub":
+
+                        items, pages = extract_epub(
+                            file_bytes,
+                            uploaded_file.name
+                        )
+
+                    elif ext == "txt":
+
+                        items, pages = extract_txt(
+                            file_bytes,
+                            uploaded_file.name
+                        )
+
+                    else:
+
+                        items, pages = [], 0
+
+                    all_items.extend(items)
+
+                    total_pages += pages
+
+                    processed_files += 1
+
+                except Exception as e:
+
+                    st.error(
+                        f"Error processing {uploaded_file.name}: {e}"
+                    )
+
+        # REMOVE DUPLICATES
+        all_items = list(dict.fromkeys(all_items))
+
+        total = len(all_items)
 
         st.markdown(f"""
         <div class="stat-grid">
             <div class="stat-card">
                 <span class="stat-n">{total}</span>
-                <span class="stat-l">Items extracted</span>
+                <span class="stat-l">Highlights Extracted</span>
             </div>
+
             <div class="stat-card">
-                <span class="stat-n">{pages}</span>
-                <span class="stat-l">{page_label} with content</span>
+                <span class="stat-n">{processed_files}</span>
+                <span class="stat-l">Files Processed</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
         if total > 0:
-            title = f"{base_name} — Extracted Highlights"
+
+            title = "Combined Highlights"
 
             if out_fmt == "docx":
-                data, mime, suffix = build_docx(items, title)
-            elif out_fmt == "pdf":
-                data, mime, suffix = build_pdf(items, title)
-            elif out_fmt == "txt":
-                data, mime, suffix = build_txt(items, title)
-            else:
-                data, mime, suffix = build_md(items, title)
 
-            out_filename = f"{base_name}_Highlights{suffix}"
+                data, mime, suffix = build_docx(
+                    all_items,
+                    title
+                )
+
+            elif out_fmt == "pdf":
+
+                data, mime, suffix = build_pdf(
+                    all_items,
+                    title
+                )
+
+            elif out_fmt == "txt":
+
+                data, mime, suffix = build_txt(
+                    all_items,
+                    title
+                )
+
+            else:
+
+                data, mime, suffix = build_md(
+                    all_items,
+                    title
+                )
+
+            out_filename = f"Combined_Highlights{suffix}"
 
             st.markdown(f"""
             <div class="ok-banner">
                 <div class="ok-dot">✓</div>
                 <div>
                     <div class="ok-title">Ready to download</div>
-                    <div class="ok-sub">{total} items → {out_icon} {out_choice.split('—')[0].strip()}</div>
+                    <div class="ok-sub">
+                        {total} items from
+                        {processed_files} files
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
             st.download_button(
-                label=f"⬇  Download  {out_filename}",
+                label=f"⬇ Download {out_filename}",
                 data=data,
                 file_name=out_filename,
                 mime=mime,
             )
 
         else:
+
             st.warning(
-                f"⚠️ No extractable content found in this {ftype}. "
-                "For PDFs, ensure highlights are saved as annotations. "
-                "For DOCX, use Word's text highlight feature. "
-                "For EPUB, look for <mark> tags in the source."
+                "⚠️ No extractable content found."
             )
 
 else:
+
     st.markdown(
         '<div class="empty">Supports PDF · DOCX · PPTX · EPUB · TXT — drag above or click to browse</div>',
         unsafe_allow_html=True
