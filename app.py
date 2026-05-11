@@ -239,19 +239,78 @@ def add_unique(seen, items, new_text):
 # ═══════════════════════════════════════════════
 
 def extract_pdf(file_bytes, filename):
+
     path = filename
+
     with open(path, "wb") as f:
         f.write(file_bytes)
+
     pdf = fitz.open(path)
-    seen, items, pages = set(), [], 0
+
+    seen = set()
+    items = []
+    pages = 0
+
     for page in pdf:
+
         page_had = False
-        for annot in (page.annots() or []):
-            if annot.type[1] == "Highlight":
-                add_unique(seen, items, page.get_textbox(annot.rect))
-                page_had = True
+
+        annotations = page.annots()
+
+        if annotations:
+
+            for annot in annotations:
+
+                # Only highlights
+                if annot.type[1] == "Highlight":
+
+                    try:
+
+                        quad_points = annot.vertices
+
+                        words = page.get_text("words")
+
+                        highlighted_words = []
+
+                        # Loop through every quad
+                        for i in range(0, len(quad_points), 4):
+
+                            quad = quad_points[i:i+4]
+
+                            rect = fitz.Quad(quad).rect
+
+                            for word in words:
+
+                                word_rect = fitz.Rect(word[:4])
+
+                                # Check intersection
+                                if rect.intersects(word_rect):
+
+                                    highlighted_words.append(word[4])
+
+                        highlighted_text = " ".join(highlighted_words)
+
+                        highlighted_text = clean_text(
+                            highlighted_text
+                        )
+
+                        if (
+                            highlighted_text
+                            and highlighted_text not in seen
+                        ):
+
+                            seen.add(highlighted_text)
+
+                            items.append(highlighted_text)
+
+                            page_had = True
+
+                    except Exception:
+                        pass
+
         if page_had:
             pages += 1
+
     return items, pages
 
 def extract_docx(file_bytes, filename):
