@@ -164,6 +164,62 @@ section[data-testid="stSidebar"] {
     min-width: 320px !important;
     max-width: 320px !important;
 }
+/* MOBILE RESPONSIVE FIX */
+
+@media (max-width: 768px) {
+
+    .h-title {
+        font-size: 1.9rem !important;
+        line-height: 1.15 !important;
+        padding: 0 10px !important;
+    }
+
+    .h-sub {
+        font-size: 13px !important;
+        padding: 0 14px !important;
+    }
+
+    .hero {
+        padding-top: 1rem !important;
+    }
+
+    .stat-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .icard {
+        padding: 0.8rem !important;
+    }
+
+    .icard-name {
+        font-size: 12px !important;
+        word-break: break-word !important;
+    }
+
+    .stDownloadButton button {
+        font-size: 14px !important;
+    }
+
+    section[data-testid="stSidebar"] {
+        width: 260px !important;
+        min-width: 260px !important;
+    }
+
+    .block-container {
+        padding-top: 1rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    div[data-testid="stRadio"] > div {
+        flex-direction: column !important;
+    }
+
+    div[data-testid="stRadio"] label {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
