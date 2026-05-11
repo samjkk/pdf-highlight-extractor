@@ -442,14 +442,8 @@ def build_pdf(items, title):
         SimpleDocTemplate,
         Paragraph,
         Spacer,
-        PageBreak,
-        KeepTogether
+        HRFlowable
     )
-
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.platypus.tables import Table, TableStyle
-    from reportlab.platypus.flowables import HRFlowable
-
     buf = BytesIO()
 
     doc = SimpleDocTemplate(
@@ -473,14 +467,25 @@ def build_pdf(items, title):
         spaceAfter=20,
     )
 
+    file_style = ParagraphStyle(
+        "FileStyle",
+        parent=styles["Heading1"],
+        fontName="Helvetica-Bold",
+        fontSize=16,
+        leading=24,
+        textColor=colors.HexColor("#111111"),
+        spaceBefore=20,
+        spaceAfter=12,
+    )
+
     heading_style = ParagraphStyle(
         "HeadingStyle",
         parent=styles["Heading2"],
         fontName="Helvetica-Bold",
-        fontSize=14,
+        fontSize=13,
         leading=20,
-        textColor=colors.HexColor("#222222"),
-        spaceBefore=14,
+        textColor=colors.HexColor("#333333"),
+        spaceBefore=12,
         spaceAfter=8,
     )
 
@@ -490,45 +495,62 @@ def build_pdf(items, title):
         fontName="Helvetica",
         fontSize=11,
         leading=18,
-        textColor=colors.HexColor("#333333"),
-        spaceAfter=10,
+        textColor=colors.HexColor("#444444"),
+        spaceAfter=8,
     )
 
     story = []
 
-    # Title
+    # MAIN TITLE
     story.append(Paragraph(title, title_style))
     story.append(HRFlowable(width="100%"))
-    story.append(Spacer(1, 0.3 * cm))
+    story.append(Spacer(1, 0.4 * cm))
 
-    for item in items:
+    # EACH FILE SECTION
+    for section in items:
 
-        # Clean dangerous HTML chars
-        safe = (
-            item.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
+        file_name = os.path.splitext(
+            section["file"]
+        )[0]
+
+        story.append(
+            Paragraph(
+                file_name,
+                file_style
+            )
         )
 
-        # Remove weird unicode bullets/emojis if needed
-        safe = safe.encode("utf-8", "ignore").decode("utf-8")
+        story.append(HRFlowable(width="30%"))
 
-        # Heading detection
-        if item.isupper():
+        story.append(Spacer(1, 0.15 * cm))
 
-            story.append(Spacer(1, 0.15 * cm))
-            story.append(Paragraph(safe, heading_style))
+        for item in section["items"]:
 
-        else:
-
-            bullet_text = f"• {safe}"
-
-            story.append(
-                Paragraph(
-                    bullet_text,
-                    body_style
-                )
+            safe = (
+                item.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
             )
+
+            if item.isupper():
+
+                story.append(
+                    Paragraph(
+                        safe,
+                        heading_style
+                    )
+                )
+
+            else:
+
+                story.append(
+                    Paragraph(
+                        f"• {safe}",
+                        body_style
+                    )
+                )
+
+        story.append(Spacer(1, 0.3 * cm))
 
     doc.build(story)
 
@@ -756,9 +778,8 @@ if uploaded_files:
                 )
 
             elif out_fmt == "pdf":
-
                 data, mime, suffix = build_pdf(
-                    all_items,
+                    structured_items,
                     title
                 )
 
