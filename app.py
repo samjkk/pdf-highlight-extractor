@@ -4,7 +4,11 @@ from docx import Document            # python-docx — DOCX read/write
 from docx.shared import Pt, RGBColor
 from pptx import Presentation        # python-pptx — PPTX notes/comments
 from ebooklib import epub, ITEM_DOCUMENT  # ebooklib — EPUB <mark> tags
-from fpdf import FPDF                # fpdf2 — PDF output
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.lib import colors
 from bs4 import BeautifulSoup        # parse EPUB HTML
 import re, os
 from io import BytesIO
@@ -344,62 +348,57 @@ def build_docx(items, title):
     doc.save(buf)
     return buf.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"
 
-def _get_dejavu_font():
-    """
-    Return local paths to DejaVuSans TTF files, downloading them if needed.
-    DejaVu is open-source and supports the full Unicode BMP — no encoding errors.
-    """
-    import urllib.request, tempfile, pathlib
-    cache = pathlib.Path(tempfile.gettempdir())
-    files = {
-        "regular": ("DejaVuSans.ttf",
-                    "https://github.com/dejavu-fonts/dejavu-fonts/raw/main/ttf/DejaVuSans.ttf"),
-        "bold":    ("DejaVuSans-Bold.ttf",
-                    "https://github.com/dejavu-fonts/dejavu-fonts/raw/main/ttf/DejaVuSans-Bold.ttf"),
-    }
-    paths = {}
-    for key, (fname, url) in files.items():
-        dest = cache / fname
-        if not dest.exists():
-            urllib.request.urlretrieve(url, dest)
-        paths[key] = str(dest)
-    return paths["regular"], paths["bold"]
-
 def build_pdf(items, title):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-
-    # Register a Unicode-capable font so any language/character works
-    try:
-        reg_path, bold_path = _get_dejavu_font()
-        pdf.add_font("DejaVu",  "",  reg_path,  uni=True)
-        pdf.add_font("DejaVu",  "B", bold_path, uni=True)
-        body_font, heading_font = "DejaVu", "DejaVu"
-    except Exception:
-        # Fallback: strip non-latin chars (original behaviour)
-        body_font, heading_font = "Helvetica", "Helvetica"
-
-    pdf.add_page()
-
-    # Title
-    pdf.set_font(heading_font, "B", 18)
-    pdf.multi_cell(0, 10, title, align="C")
-    pdf.ln(6)
-
-    pdf.set_font(body_font, size=11)
-    for item in items:
-        if item.isupper():
-            pdf.set_font(heading_font, "B", 13)
-            pdf.ln(4)
-            pdf.multi_cell(0, 8, item)
-            pdf.set_font(body_font, size=11)
-        else:
-            pdf.set_x(15)
-            pdf.multi_cell(0, 7, f"\u2022 {item}")   # real bullet, not ASCII
-            pdf.ln(1)
-
+    """
+    Build a Unicode-safe PDF using reportlab.
+    reportlab ships with built-in Unicode support — no font downloads needed.
+    """
     buf = BytesIO()
-    pdf.output(buf)
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=2*cm, bottomMargin=2*cm
+    )
+
+    base = getSampleStyleSheet()
+
+    style_title = ParagraphStyle(
+        "PTitle",
+        parent=base["Title"],
+        fontSize=20,
+        spaceAfter=14,
+        textColor=colors.HexColor("#E8572A"),
+        fontName="Helvetica-Bold",
+    )
+    style_heading = ParagraphStyle(
+        "PHeading",
+        parent=base["Heading2"],
+        fontSize=13,
+        spaceBefore=10,
+        spaceAfter=4,
+        fontName="Helvetica-Bold",
+        textColor=colors.HexColor("#333333"),
+    )
+    style_body = ParagraphStyle(
+        "PBody",
+        parent=base["Normal"],
+        fontSize=11,
+        leading=16,
+        spaceAfter=6,
+        fontName="Helvetica",
+    )
+
+    story = [Paragraph(title, style_title), Spacer(1, 0.3*cm)]
+
+    for item in items:
+        # Escape HTML special chars so reportlab doesn't choke
+        safe = item.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        if item.isupper():
+            story.append(Paragraph(safe, style_heading))
+        else:
+            story.append(Paragraph(f"&#x2022; &nbsp;{safe}", style_body))
+
+    doc.build(story)
     return buf.getvalue(), "application/pdf", ".pdf"
 
 def build_txt(items, title):
