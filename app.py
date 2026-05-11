@@ -110,7 +110,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif !important; }
 /* STAT GRID */
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 1.2rem 0; }
 .stat-card { border-radius: var(--r-md); border: 1px solid rgba(128,128,128,0.11); padding: 1rem 1.2rem; text-align: center; }
-.stat-n { font-family: 'DM Serif Display', Georgia, serif !important; font-size: 2.4rem; color: var(--ac); line-height: 1; display: block; margin-bottom: 6px; }
+.stat-n { font-familyf: 'DM Serif Display', Georgia, serif !important; font-size: 2.4rem; color: var(--ac); line-height: 1; display: block; margin-bottom: 6px; }
 .stat-l { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.4; }
 
 /* SUCCESS BANNER */
@@ -397,16 +397,44 @@ def extract_txt(file_bytes, filename):
 # ═══════════════════════════════════════════════
 
 def build_docx(items, title):
+
     doc = Document()
+
     doc.add_heading(title, level=1)
-    for item in items:
-        if item.isupper():
-            doc.add_heading(item, level=2)
-        else:
-            doc.add_paragraph(item)
+
+    for section in items:
+
+        file_name = os.path.splitext(
+            section["file"]
+        )[0]
+
+        doc.add_heading(
+            file_name,
+            level=2
+        )
+
+        for item in section["items"]:
+
+            if item.isupper():
+
+                doc.add_heading(
+                    item,
+                    level=3
+                )
+
+            else:
+
+                doc.add_paragraph(item)
+
     buf = BytesIO()
+
     doc.save(buf)
-    return buf.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"
+
+    return (
+        buf.getvalue(),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".docx"
+    )
 
 def build_pdf(items, title):
 
@@ -625,6 +653,7 @@ if uploaded_files:
     ):
 
         all_items = []
+        structured_items = []
 
         total_pages = 0
 
@@ -679,6 +708,11 @@ if uploaded_files:
 
                         items, pages = [], 0
 
+                    structured_items.append({
+                        "file": uploaded_file.name,
+                        "items": items
+                    })
+
                     all_items.extend(items)
 
                     total_pages += pages
@@ -717,7 +751,7 @@ if uploaded_files:
             if out_fmt == "docx":
 
                 data, mime, suffix = build_docx(
-                    all_items,
+                    structured_items,
                     title
                 )
 
@@ -742,7 +776,19 @@ if uploaded_files:
                     title
                 )
 
-            out_filename = f"Combined_Highlights{suffix}"
+            short_names = []
+
+            for f in uploaded_files:
+
+                short = os.path.splitext(f.name)[0]
+
+                short = short[:15]
+
+                short_names.append(short)
+
+            combined_name = "_".join(short_names[:3])
+
+            out_filename = f"{combined_name}_Highlights{suffix}"    
 
             st.markdown(f"""
             <div class="ok-banner">
