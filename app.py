@@ -434,23 +434,19 @@ def extract_pptx(file_bytes, filename):
 
                     extracted = False
 
-                    # METHOD 1 → native highlight
+                    # NATIVE HIGHLIGHT
                     try:
                         if run.font.highlight_color is not None:
                             extracted = True
                     except:
                         pass
 
-                    # METHOD 2 → colored background/fill
+                    # BOLD + LONG TEXT HEURISTIC
                     try:
-                        if run.font.fill:
-                            extracted = True
-                    except:
-                        pass
-
-                    # METHOD 3 → bold heuristic
-                    try:
-                        if run.font.bold:
+                        if (
+                            run.font.bold
+                            and len(text) > 25
+                        ):
                             extracted = True
                     except:
                         pass
