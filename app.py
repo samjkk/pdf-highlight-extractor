@@ -42,7 +42,9 @@ st.markdown("""
     --r-md: 12px; --r-lg: 18px;
 }
 html, body, [class*="css"] { font-family: 'DM Sans', sans-serif !important; }
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu, footer {
+    visibility: hidden;
+}
 .stDeployButton { display: none; }
 }
 
@@ -764,11 +766,11 @@ if uploaded_files:
                 <span class="stat-n">{total}</span>
                 <span class="stat-l">Highlights Extracted</span>
             </div>
-
             <div class="stat-card">
                 <span class="stat-n">{processed_files}</span>
                 <span class="stat-l">Files Processed</span>
             </div>
+
         </div>
         """, unsafe_allow_html=True)
 
