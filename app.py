@@ -408,29 +408,49 @@ def extract_docx(file_bytes, filename):
     return items, len(items)
 
 def extract_pptx(file_bytes, filename):
-    path = filename
-    with open(path, "wb") as f:
-        f.write(file_bytes)
-    prs = Presentation(path)
-    seen, items = set(), []
+
+    prs = Presentation(BytesIO(file_bytes))
+
+    items = []
     slides_with_content = 0
-    for slide in prs.slides:
-        had = False
-        # Slide notes
-        if slide.has_notes_slide:
-            notes = slide.notes_slide.notes_text_frame.text
-            if notes.strip():
-                add_unique(seen, items, notes)
-                had = True
-        # Comments
-        try:
-            for comment in slide.comments:
-                add_unique(seen, items, comment.text)
-                had = True
-        except Exception:
-            pass
-        if had:
+
+    for slide_num, slide in enumerate(prs.slides, start=1):
+
+        slide_items = []
+
+        for shape in slide.shapes:
+
+            if not hasattr(shape, "text_frame"):
+                continue
+
+            for para in shape.text_frame.paragraphs:
+
+                for run in para.runs:
+
+                    text = run.text.strip()
+
+                    if not text:
+                        continue
+
+                    try:
+                        fill = run.font.highlight_color
+
+                        # highlighted text exists
+                        if fill is not None:
+
+                            if text not in slide_items:
+                                slide_items.append(text)
+
+                    except:
+                        pass
+
+        if slide_items:
+
             slides_with_content += 1
+
+            for t in slide_items:
+                items.append(t)
+
     return items, slides_with_content
 
 def extract_epub(file_bytes, filename):
