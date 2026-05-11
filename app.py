@@ -44,7 +44,7 @@ st.markdown("""
 html, body, [class*="css"] { font-family: 'DM Sans', sans-serif !important; }
 #MainMenu, footer, header { visibility: hidden; }
 .stDeployButton { display: none; }
-.block-container { padding: 2rem 1.75rem 4rem !important; max-width: 700px !important; }
+}
 
 /* HERO */
 .hero { text-align: center; padding: 2rem 0 0.5rem; }
@@ -156,16 +156,11 @@ div[data-testid="stRadio"] label:has(input:checked) {
 .s-chip { display: inline-block; background: rgba(128,128,128,0.1); border-radius: 4px; font-size: 10px; font-weight: 700; padding: 2px 7px; letter-spacing: 0.05em; margin: 2px 2px 0 0; }
 .s-foot { font-size: 11.5px; opacity: 0.4; line-height: 1.65; margin-top: 1.5rem; padding-top: 1.2rem; border-top: 1px solid rgba(128,128,128,0.12); }
 .empty { text-align: center; padding: 1rem 0 0.5rem; font-size: 13px; opacity: 0.35; }
-/* FORCE SIDEBAR VISIBLE */
+/* SIDEBAR FIX */
 
 section[data-testid="stSidebar"] {
-    display: block !important;
-    visibility: visible !important;
-    width: 320px !important;
-}
-
-[data-testid="collapsedControl"] {
-    display: block !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
 }
 </style>
 """, unsafe_allow_html=True)
