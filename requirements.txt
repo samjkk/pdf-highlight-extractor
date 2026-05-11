@@ -1,3 +1,8 @@
 streamlit
 PyMuPDF
 python-docx
+python-pptx
+ebooklib
+fpdf2
+beautifulsoup4
+lxml
