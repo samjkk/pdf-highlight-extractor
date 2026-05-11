@@ -344,27 +344,60 @@ def build_docx(items, title):
     doc.save(buf)
     return buf.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"
 
+def _get_dejavu_font():
+    """
+    Return local paths to DejaVuSans TTF files, downloading them if needed.
+    DejaVu is open-source and supports the full Unicode BMP — no encoding errors.
+    """
+    import urllib.request, tempfile, pathlib
+    cache = pathlib.Path(tempfile.gettempdir())
+    files = {
+        "regular": ("DejaVuSans.ttf",
+                    "https://github.com/dejavu-fonts/dejavu-fonts/raw/main/ttf/DejaVuSans.ttf"),
+        "bold":    ("DejaVuSans-Bold.ttf",
+                    "https://github.com/dejavu-fonts/dejavu-fonts/raw/main/ttf/DejaVuSans-Bold.ttf"),
+    }
+    paths = {}
+    for key, (fname, url) in files.items():
+        dest = cache / fname
+        if not dest.exists():
+            urllib.request.urlretrieve(url, dest)
+        paths[key] = str(dest)
+    return paths["regular"], paths["bold"]
+
 def build_pdf(items, title):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Register a Unicode-capable font so any language/character works
+    try:
+        reg_path, bold_path = _get_dejavu_font()
+        pdf.add_font("DejaVu",  "",  reg_path,  uni=True)
+        pdf.add_font("DejaVu",  "B", bold_path, uni=True)
+        body_font, heading_font = "DejaVu", "DejaVu"
+    except Exception:
+        # Fallback: strip non-latin chars (original behaviour)
+        body_font, heading_font = "Helvetica", "Helvetica"
+
     pdf.add_page()
-    pdf.set_font("Helvetica", "B", 18)
+
     # Title
-    safe_title = title.encode("latin-1", "replace").decode("latin-1")
-    pdf.multi_cell(0, 10, safe_title, align="C")
+    pdf.set_font(heading_font, "B", 18)
+    pdf.multi_cell(0, 10, title, align="C")
     pdf.ln(6)
-    pdf.set_font("Helvetica", size=11)
+
+    pdf.set_font(body_font, size=11)
     for item in items:
-        safe = item.encode("latin-1", "replace").decode("latin-1")
         if item.isupper():
-            pdf.set_font("Helvetica", "B", 13)
+            pdf.set_font(heading_font, "B", 13)
             pdf.ln(4)
-            pdf.multi_cell(0, 8, safe)
-            pdf.set_font("Helvetica", size=11)
+            pdf.multi_cell(0, 8, item)
+            pdf.set_font(body_font, size=11)
         else:
             pdf.set_x(15)
-            pdf.multi_cell(0, 7, f"• {safe}")
+            pdf.multi_cell(0, 7, f"\u2022 {item}")   # real bullet, not ASCII
             pdf.ln(1)
+
     buf = BytesIO()
     pdf.output(buf)
     return buf.getvalue(), "application/pdf", ".pdf"
