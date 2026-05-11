@@ -349,57 +349,110 @@ def build_docx(items, title):
     return buf.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"
 
 def build_pdf(items, title):
-    """
-    Build a Unicode-safe PDF using reportlab.
-    reportlab ships with built-in Unicode support — no font downloads needed.
-    """
+
+    from reportlab.platypus import (
+        SimpleDocTemplate,
+        Paragraph,
+        Spacer,
+        PageBreak,
+        KeepTogether
+    )
+
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus.tables import Table, TableStyle
+    from reportlab.platypus.flowables import HRFlowable
+
     buf = BytesIO()
+
     doc = SimpleDocTemplate(
-        buf, pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=2*cm, bottomMargin=2*cm
+        buf,
+        pagesize=A4,
+        leftMargin=1.8*cm,
+        rightMargin=1.8*cm,
+        topMargin=1.8*cm,
+        bottomMargin=1.8*cm,
     )
 
-    base = getSampleStyleSheet()
+    styles = getSampleStyleSheet()
 
-    style_title = ParagraphStyle(
-        "PTitle",
-        parent=base["Title"],
-        fontSize=20,
-        spaceAfter=14,
+    title_style = ParagraphStyle(
+        "TitleStyle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=22,
+        leading=28,
         textColor=colors.HexColor("#E8572A"),
-        fontName="Helvetica-Bold",
-    )
-    style_heading = ParagraphStyle(
-        "PHeading",
-        parent=base["Heading2"],
-        fontSize=13,
-        spaceBefore=10,
-        spaceAfter=4,
-        fontName="Helvetica-Bold",
-        textColor=colors.HexColor("#333333"),
-    )
-    style_body = ParagraphStyle(
-        "PBody",
-        parent=base["Normal"],
-        fontSize=11,
-        leading=16,
-        spaceAfter=6,
-        fontName="Helvetica",
+        spaceAfter=20,
     )
 
-    story = [Paragraph(title, style_title), Spacer(1, 0.3*cm)]
+    heading_style = ParagraphStyle(
+        "HeadingStyle",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=14,
+        leading=20,
+        textColor=colors.HexColor("#222222"),
+        spaceBefore=14,
+        spaceAfter=8,
+    )
+
+    body_style = ParagraphStyle(
+        "BodyStyle",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=11,
+        leading=18,
+        textColor=colors.HexColor("#333333"),
+        spaceAfter=10,
+    )
+
+    story = []
+
+    # Title
+    story.append(Paragraph(title, title_style))
+    story.append(HRFlowable(width="100%"))
+    story.append(Spacer(1, 0.3 * cm))
 
     for item in items:
-        # Escape HTML special chars so reportlab doesn't choke
-        safe = item.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+        # Clean dangerous HTML chars
+        safe = (
+            item.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+        )
+
+        # Remove weird unicode bullets/emojis if needed
+        safe = safe.encode("utf-8", "ignore").decode("utf-8")
+
+        # Heading detection
         if item.isupper():
-            story.append(Paragraph(safe, style_heading))
+
+            story.append(Spacer(1, 0.15 * cm))
+            story.append(Paragraph(safe, heading_style))
+
         else:
-            story.append(Paragraph(f"&#x2022; &nbsp;{safe}", style_body))
+
+            bullet_text = f"• {safe}"
+
+            story.append(
+                Paragraph(
+                    bullet_text,
+                    body_style
+                )
+            )
 
     doc.build(story)
-    return buf.getvalue(), "application/pdf", ".pdf"
+
+    pdf_bytes = buf.getvalue()
+
+    buf.close()
+
+    return (
+        pdf_bytes,
+        "application/pdf",
+        ".pdf"
+    )
 
 def build_txt(items, title):
     lines = [title, "=" * len(title), ""]
