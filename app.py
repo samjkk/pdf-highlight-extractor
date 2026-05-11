@@ -432,17 +432,33 @@ def extract_pptx(file_bytes, filename):
                     if not text:
                         continue
 
+                    extracted = False
+
+                    # METHOD 1 → native highlight
                     try:
-                        fill = run.font.highlight_color
-
-                        # highlighted text exists
-                        if fill is not None:
-
-                            if text not in slide_items:
-                                slide_items.append(text)
-
+                        if run.font.highlight_color is not None:
+                            extracted = True
                     except:
                         pass
+
+                    # METHOD 2 → colored background/fill
+                    try:
+                        if run.font.fill:
+                            extracted = True
+                    except:
+                        pass
+
+                    # METHOD 3 → bold heuristic
+                    try:
+                        if run.font.bold:
+                            extracted = True
+                    except:
+                        pass
+
+                    if extracted:
+
+                        if text not in slide_items:
+                            slide_items.append(text)
 
         if slide_items:
 
